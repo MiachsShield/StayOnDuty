@@ -477,3 +477,53 @@ held while nobody was watching:
 ```
 python3 -m stayonduty.demo_recovery
 ```
+
+## The app (v1)
+
+StayOnDuty as a thing a non-technical person can actually use: a small
+web app on your own machine. No accounts, no subscriptions, no fees —
+free forever.
+
+```bash
+cd ~/workspace/stayonduty
+python3 -m stayonduty.app
+# open http://localhost:8080/
+```
+
+**What you do:**
+
+1. **Settings** — paste an API key for Claude, Grok, and/or ChatGPT.
+   That's the BYOK part: *you bring your own key*, and the AI provider
+   bills you directly at their normal rates (usually pennies per task).
+   StayOnDuty never charges you anything and never sees your bill.
+   Your keys are stored **only in the database on this machine** — never
+   in code, logs, or anywhere else.
+2. **＋ New task** — type what should get done in plain words ("Summarize
+   this report", "Draft a reply to…"), pick which helper does it
+   (or leave it on Auto), and tap Start.
+3. **Check in whenever you like** — the home screen shows each task as
+   a card in plain language: Working, In line, Done, Taking a scheduled
+   break. If a helper stalls, errors, or hits a usage limit, StayOnDuty
+   handles it on its own (replan → fresh attempt → give up with the full
+   story saved). "Handled on its own" is the proof, in sentences.
+
+**Two honest notes:**
+
+- "Claude / Grok / ChatGPT" here means their **official APIs** on your
+  key — not the chat websites. claude.ai, grok.com, and chatgpt.com
+  can't be plugged into anything, so a website login won't work; you
+  need an API key from the provider (the Settings page says where).
+- Every task gets a spending cap (100k tokens — pennies), so a runaway
+  can't surprise you. If a task hits it, it pauses itself and waits for
+  you to raise the limit on its page. Nothing is ever spent after a
+  pause, and nothing ever notifies or nags you — the app is pull-only.
+
+**For the technical:** the app is `stayonduty/app.py` (web UI, stdlib
+only) plus `stayonduty/app_runner.py` (background supervisor thread:
+stale-lease recovery, quota-wait promotion, stuck detection, and one
+focused provider pass per task). Providers live in
+`stayonduty/providers/` — `anthropic.py` (Claude, Messages API),
+`xai.py` (Grok), and `openai.py` (ChatGPT) are all plain-HTTPS, zero
+new dependencies. The app's database defaults to `stayonduty-app.db`
+in the current directory; the SDK, MCP server, dashboard, and all
+demos are unchanged.

@@ -24,6 +24,11 @@ class QuotaExhausted(ProviderError):
         self.reset_at = float(reset_at)
 
 
+class AuthError(ProviderError):
+    """The provider rejected the credentials (missing, wrong, or expired
+    key). Never retry this — the user must fix the key."""
+
+
 class ProviderResult:
     """One generation. output is bytes for images, str for text."""
 

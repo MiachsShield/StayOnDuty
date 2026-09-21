@@ -29,7 +29,8 @@ import time
 import urllib.error
 import urllib.request
 
-from .base import Provider, ProviderError, ProviderResult, QuotaExhausted, QuotaStatus
+from .base import (Provider, ProviderError, AuthError, ProviderResult,
+                   QuotaExhausted, QuotaStatus)
 
 BASE_URL = "https://api.x.ai/v1"
 DEFAULT_CHAT_MODEL = "grok-4"
@@ -90,8 +91,9 @@ class XAIProvider(Provider):
                     f"xAI rate limited (429): {snippet}") from None
             if e.code in (401, 403):
                 # Deliberately no body echo: auth failures can reflect secrets.
-                raise ProviderError(
-                    f"xAI auth failed (HTTP {e.code}) — check XAI_API_KEY") from None
+                raise AuthError(
+                    "xAI rejected the API key — check it in StayOnDuty"
+                    " Settings (or the XAI_API_KEY env var)") from None
             raise ProviderError(f"xAI HTTP {e.code}: {snippet}") from None
         except urllib.error.URLError as e:
             raise ProviderError(f"xAI unreachable: {e.reason}") from None

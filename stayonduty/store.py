@@ -89,6 +89,15 @@ CREATE TABLE IF NOT EXISTS recovery_log (
   at REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_recovery_log_at ON recovery_log(at);
+-- App settings (v1): API keys and preferences live ONLY here, in the
+-- local database. They are never written to code, logs, or git. Values
+-- are write-only from the UI's point of view — the settings page shows
+-- "saved" / "not set", never the value back.
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at REAL NOT NULL
+);
 """
 
 
@@ -209,6 +218,11 @@ class Store:
         self.db.execute(
             "CREATE INDEX IF NOT EXISTS idx_recovery_log_at"
             " ON recovery_log(at)")
+        # App settings table for pre-v1 databases.
+        self.db.execute(
+            "CREATE TABLE IF NOT EXISTS settings ("
+            " key TEXT PRIMARY KEY, value TEXT NOT NULL,"
+            " updated_at REAL NOT NULL)")
 
     # ---------- autonomy journal ----------
     def _log_recovery(self, task_id, title, event, worker="", detail="",
@@ -1195,6 +1209,27 @@ class Store:
         q = "SELECT key, scope, value FROM memory" + (" WHERE scope=?" if scope else "")
         rows = self.db.execute(q, (scope,) if scope else []).fetchall()
         return {r["key"]: json.loads(r["value"]) for r in rows}
+
+    # ---------- app settings (API keys live ONLY here) ----------
+    def set_setting(self, key, value):
+        """Store a setting. Used for API keys — the value is never logged,
+        never echoed back to the UI, and never leaves this database except
+        in the Authorization header of a call to its own provider."""
+        self.db.execute(
+            "INSERT INTO settings (key, value, updated_at) VALUES (?,?,?)"
+            " ON CONFLICT(key) DO UPDATE SET value=excluded.value,"
+            " updated_at=excluded.updated_at",
+            (key, value, time.time()))
+        self.db.commit()
+
+    def get_setting(self, key, default=None):
+        row = self.db.execute(
+            "SELECT value FROM settings WHERE key=?", (key,)).fetchone()
+        return row["value"] if row else default
+
+    def delete_setting(self, key):
+        self.db.execute("DELETE FROM settings WHERE key=?", (key,))
+        self.db.commit()
 
     # ---------- stuck detection ----------
     def _last_progress_at(self, task_id, fallback):

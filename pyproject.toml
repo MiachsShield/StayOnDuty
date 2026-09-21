@@ -21,6 +21,7 @@ classifiers = [
 [project.scripts]
 stayonduty-mcp = "stayonduty.mcp_server:main"
 stayonduty-claude-code = "stayonduty.claude_code.install:main"
+stayonduty-app = "stayonduty.app:main"
 
 [tool.setuptools.packages.find]
 include = ["stayonduty*"]
