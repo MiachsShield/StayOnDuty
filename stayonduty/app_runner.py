@@ -10,9 +10,11 @@ supervision:
 
 App tasks are the ones created through the web UI ("New task"). Each
 carries its model choice in the payload; the runner resolves it to a
-provider using the API keys in the settings table. A task whose model
-has no key is NEVER claimed — it sits in a calm "needs a key" state
-until the user adds one in Settings. No crashes, no attempts burned.
+provider using the credentials in the settings table — a one-tap Google
+sign-in for Gemini (preferred), or a pasted API key per provider. A
+task whose model isn't connected is NEVER claimed — it sits in a calm
+"needs a key" state until the user connects it in Settings. No crashes,
+no attempts burned.
 
 Run standalone for debugging:
     python3 -m stayonduty.app_runner <db>
@@ -32,9 +34,14 @@ from stayonduty.providers.base import (ProviderError, AuthError,  # noqa: E402
 from stayonduty.providers.anthropic import AnthropicProvider  # noqa: E402
 from stayonduty.providers.xai import XAIProvider  # noqa: E402
 from stayonduty.providers.openai import OpenAIProvider  # noqa: E402
+from stayonduty.providers.gemini import GeminiProvider  # noqa: E402
+from stayonduty import google_oauth  # noqa: E402
 
 # model id -> (settings key holding its API key, provider class, human label)
+# gemini's settings key is None: it connects with one tap through Google
+# OAuth ("Continue with Google"); a pasted key_gemini is the fallback.
 MODELS = {
+    "gemini": (None, GeminiProvider, "Gemini"),
     "claude": ("key_anthropic", AnthropicProvider, "Claude"),
     "grok": ("key_xai", XAIProvider, "Grok"),
     "chatgpt": ("key_openai", OpenAIProvider, "ChatGPT"),
@@ -72,16 +79,37 @@ def resolve_model(model_choice, store):
     return None
 
 
-def _has_key(model_id, store):
+def is_connected(model_id, store):
+    """True when a model can actually run: a saved API key, or — for
+    Gemini — a completed Google sign-in."""
+    if model_id == "gemini":
+        return (google_oauth.google_connected(store)
+                or bool((store.get_setting("key_gemini") or "").strip()))
     setting_key = MODELS[model_id][0]
     return bool((store.get_setting(setting_key) or "").strip())
 
 
+def _has_key(model_id, store):
+    return is_connected(model_id, store)
+
+
 def provider_for(model_id, store):
-    """Build the provider for a resolved model id. The key is read from
-    the settings database and passed transiently — never logged, never
-    stored anywhere else."""
+    """Build the provider for a resolved model id. Credentials are read
+    from the settings database and passed transiently — never logged,
+    never stored anywhere else."""
     setting_key, cls, label = MODELS[model_id]
+    if model_id == "gemini":
+        # One-tap Google sign-in first (token refreshed proactively),
+        # pasted API key as the advanced fallback.
+        if google_oauth.google_connected(store):
+            return cls(access_token=google_oauth.get_valid_access_token(
+                store)), label
+        key = (store.get_setting("key_gemini") or "").strip()
+        if not key:
+            raise AuthError(
+                "Gemini isn't connected — tap 'Continue with Google' in"
+                " Settings (one tap, free).")
+        return cls(api_key=key), label
     key = (store.get_setting(setting_key) or "").strip()
     if not key:
         raise AuthError(f"No API key saved for {label} — add one in Settings.")
@@ -126,11 +154,10 @@ def make_work_fn(provider, label):
                 last_error = None
                 break
             except QuotaExhausted as qe:
-                raise QuotaWait(
-                    qe.reset_at,
-                    f"{label} is at its usage limit — resuming on its own"
-                    " when the window resets",
-                    provider=label)
+                wait_msg = (getattr(provider, "QUOTA_WAIT_MESSAGE", None)
+                            or f"{label} is at its usage limit — resuming"
+                               " on its own when the window resets")
+                raise QuotaWait(qe.reset_at, wait_msg, provider=label)
             except AuthError:
                 # Wrong key: retrying is pointless. The note tells the
                 # user exactly what to do; the task fails as a passive

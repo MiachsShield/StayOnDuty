@@ -492,12 +492,10 @@ python3 -m stayonduty.app
 
 **What you do:**
 
-1. **Settings** — paste an API key for Claude, Grok, and/or ChatGPT.
-   That's the BYOK part: *you bring your own key*, and the AI provider
-   bills you directly at their normal rates (usually pennies per task).
-   StayOnDuty never charges you anything and never sees your bill.
-   Your keys are stored **only in the database on this machine** — never
-   in code, logs, or anywhere else.
+1. **Tap “Continue with Google”** — one tap, no keys, no codes. This
+   signs you in with your Google account and runs **Gemini on its free
+   allowance** (~1,500 requests a day — plenty). That's the whole setup.
+   Nothing is billed, ever.
 2. **＋ New task** — type what should get done in plain words ("Summarize
    this report", "Draft a reply to…"), pick which helper does it
    (or leave it on Auto), and tap Start.
@@ -506,6 +504,15 @@ python3 -m stayonduty.app
    break. If a helper stalls, errors, or hits a usage limit, StayOnDuty
    handles it on its own (replan → fresh attempt → give up with the full
    story saved). "Handled on its own" is the proof, in sentences.
+
+**Want a different helper?** Claude, Grok, and ChatGPT are still there
+in Settings — that's the BYOK part: *you bring your own key*, and the
+AI provider bills you directly at their normal rates (usually pennies
+per task). Each one has a guided 3-step card (where to tap, what to
+copy, where to paste) instead of a bare key box. Your keys are stored
+**only in the database on this machine** — never in code, logs, or
+anywhere else. StayOnDuty never charges you anything and never sees
+your bill.
 
 **Two honest notes:**
 
@@ -522,8 +529,18 @@ python3 -m stayonduty.app
 only) plus `stayonduty/app_runner.py` (background supervisor thread:
 stale-lease recovery, quota-wait promotion, stuck detection, and one
 focused provider pass per task). Providers live in
-`stayonduty/providers/` — `anthropic.py` (Claude, Messages API),
-`xai.py` (Grok), and `openai.py` (ChatGPT) are all plain-HTTPS, zero
-new dependencies. The app's database defaults to `stayonduty-app.db`
+`stayonduty/providers/` — `gemini.py` (Gemini Developer API,
+`generateContent`; accepts an API key *or* an OAuth access token, maps
+429/RESOURCE_EXHAUSTED to the quota-parking path), `anthropic.py`
+(Claude, Messages API), `xai.py` (Grok), and `openai.py` (ChatGPT) are
+all plain-HTTPS, zero new dependencies. `stayonduty/google_oauth.py`
+implements the one-tap flow (`/connect/google` →
+`/oauth/callback`): refresh/access tokens and the client secret are
+stored only in the local settings DB, the access token is refreshed
+proactively before expiry, and a dead grant degrades to a calm
+"reconnect" state. The OAuth client (Web application type, redirect
+URI = the app's `/oauth/callback`) is a one-time host setup documented
+in Settings, or via `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` env
+vars. The app's database defaults to `stayonduty-app.db`
 in the current directory; the SDK, MCP server, dashboard, and all
 demos are unchanged.
