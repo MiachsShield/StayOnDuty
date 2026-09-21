@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stayonduty"
+version = "1.0.0"
+description = "External memory + task persistence for AI agents, so long-running work never stalls silently."
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Robert Jonathan Velasquez" }]
+requires-python = ">=3.9"
+keywords = ["ai", "agents", "persistence", "memory", "task-queue", "mcp"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.scripts]
+stayonduty-mcp = "stayonduty.mcp_server:main"
+stayonduty-claude-code = "stayonduty.claude_code.install:main"
+
+[tool.setuptools.packages.find]
+include = ["stayonduty*"]
