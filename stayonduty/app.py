@@ -61,7 +61,8 @@ MODEL_LABELS = {"auto": "Auto", "gemini": "Gemini (free)",
                 "claude": "Claude", "grok": "Grok", "chatgpt": "ChatGPT"}
 
 APP_CSS = """
-.appnav{display:flex;gap:.6rem;align-items:center;margin-bottom:1.3rem}
+.appnav{display:flex;gap:.6rem;align-items:center;margin:0 -.1rem 1.1rem;
+padding:.55rem .1rem;position:sticky;top:0;z-index:5;background:var(--bg)}
 .appnav .sp{flex:1}
 .btn{display:inline-block;background:var(--green);color:#fff;border:none;
 border-radius:10px;padding:.65rem 1.25rem;font-size:1rem;font-weight:600;
@@ -89,6 +90,24 @@ text-transform:uppercase;letter-spacing:.09em;margin-bottom:.55rem}
 line-height:1.25;margin:0 0 .6rem}
 .hero-sub{color:var(--muted);font-size:.95rem;margin:0}
 .fine{color:var(--muted);font-size:.8rem;margin-top:.9rem}
+.ready{color:var(--green);font-size:.78rem;font-weight:700;white-space:nowrap}
+.notready{color:var(--muted);font-size:.78rem;white-space:nowrap}
+.pavatar{display:inline-flex;width:1.7rem;height:1.7rem;border-radius:9px;color:#fff;
+font-weight:800;align-items:center;justify-content:center;margin-right:.55rem;
+font-size:.95rem;vertical-align:-.45rem;border:1px solid rgba(0,0,0,.08)}
+@media (prefers-color-scheme:dark){
+.banner{background:#1c2a1f;border-color:#2f5b38}
+.banner.amber{background:#2b2517;border-color:#5a4d24}
+.banner.blue{background:#1c2b3d;border-color:#2c4a6e}
+.hero{background:linear-gradient(160deg,#1c2a1f,#17221a);border-color:#2f5b38}
+.keybox input[type=password],.keybox input[type=text],textarea.big{
+background:#141518;color:var(--ink);border-color:#3a3f47}
+.btn.sec{background:var(--card);color:var(--ink)}
+.btn.sec:hover{background:#262a31}
+.pill{background:var(--card)}
+code.url{background:#262a31}
+.steps .n{background:var(--green-d)}
+}
 textarea.big{width:100%;min-height:8rem;border:1px solid var(--line);
 border-radius:12px;padding:.9rem;font-size:1.05rem;font-family:inherit;
 resize:vertical}
@@ -302,9 +321,15 @@ def new_task_form(store, error=""):
                      ("claude", "Claude"), ("grok", "Grok"),
                      ("chatgpt", "ChatGPT")]:
         checked = "checked" if default == mid else ""
+        if mid == "auto":
+            state = ""
+        elif is_connected(mid, store):
+            state = " <span class='ready'>✓ ready</span>"
+        else:
+            state = " <span class='notready'>not set up</span>"
         pills.append(
             f"<label class='pill'><input type='radio' name='model' value='{mid}'"
-            f" {checked}>{lab}</label>")
+            f" {checked}>{lab}{state}</label>")
     err = f"<div class='banner amber'>{html.escape(error)}</div>" if error else ""
     return (f"<a class='back' href='/'>← All tasks</a>"
             f"<h2 style='margin:.2rem 0'>New task</h2>{err}"
@@ -314,7 +339,9 @@ def new_task_form(store, error=""):
             f"'\"Summarize this report…\"  \"Draft a reply to…\"  \"Plan…\"'></textarea>"
             f"<label class='q'>Which helper should do it?</label>"
             f"<div class='pills'>{''.join(pills)}</div>"
-            f"<p class='hint'>Every task gets a spending cap"
+            f"<p class='hint'>A helper marked “not set up” can still be picked"
+            f" — the task will simply wait until you connect it in Settings."
+            f" Every task gets a spending cap"
             f" ({APP_TOKEN_BUDGET // 1000}k tokens — pennies), so a runaway"
             " can't surprise you. If a helper stalls, errors, or its key"
             " hits a limit, StayOnDuty handles it on its own — you'll see"
@@ -417,10 +444,20 @@ def _google_section(store):
     return (f"<h3>Get started in one tap</h3>{card}{setup}")
 
 
+# Letter badges for the key-based helpers (brand-ish colors, no assets).
+P_AVATARS = {
+    "anthropic": ("C", "#d97757"),
+    "xai": ("X", "#000000"),
+    "openai": ("✦", "#10a37f"),
+}
+
+
 def _provider_cards(store):
     """Guided 3-step connect cards for Claude / Grok / ChatGPT."""
     blocks = []
     for pid, label, skey, console_url, step1, step2 in PROVIDER_GUIDES:
+        ch, bg = P_AVATARS.get(pid, ("?", "#6b7280"))
+        badge = (f"<span class='pavatar' style='background:{bg}'>{ch}</span>")
         saved = bool((store.get_setting(skey) or "").strip())
         status = ("<span class='saved'>● Saved</span>" if saved
                   else "<span class='notset'>○ Not set</span>")
@@ -430,7 +467,7 @@ def _provider_cards(store):
                   f"<button class='btn danger' type='submit'>Remove</button>"
                   f"</form>" if saved else "")
         blocks.append(
-            f"<div class='keybox'><b>{label}</b> {status}"
+            f"<div class='keybox'>{badge}<b>{label}</b> {status}"
             f"<ol class='steps'>"
             f"<li><span class='n'>1</span>{html.escape(step1)}</li>"
             f"<li><span class='n'>2</span>{html.escape(step2)}</li>"
@@ -458,9 +495,15 @@ def settings_page(store, notice=""):
                      ("claude", "Claude"), ("grok", "Grok"),
                      ("chatgpt", "ChatGPT")]:
         checked = "checked" if default == mid else ""
+        if mid == "auto":
+            state = ""
+        elif is_connected(mid, store):
+            state = " <span class='ready'>✓ ready</span>"
+        else:
+            state = " <span class='notready'>not set up</span>"
         pills.append(
             f"<label class='pill'><input type='radio' name='default_model'"
-            f" value='{mid}' {checked}>{lab}</label>")
+            f" value='{mid}' {checked}>{lab}{state}</label>")
     return (f"<a class='back' href='/'>← All tasks</a>"
             f"<h2 style='margin:.2rem 0'>Settings</h2>{banner}"
             f"{_google_section(store)}"

@@ -96,6 +96,29 @@ padding:1.15rem 1.3rem;margin-bottom:.75rem;box-shadow:var(--shadow);font-size:1
 .answer .pre{white-space:pre-wrap;margin:0}
 @media(max-width:640px){.stats{gap:.55rem}.stat{padding:.75rem .8rem}
 .stat .n{font-size:1.35rem}.stat .l{font-size:.76rem}.brandname{font-size:1.32rem}}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+.wrap{animation:fadein .22s ease}
+ul.timeline{position:relative;list-style:none;padding:0;margin:0}
+ul.timeline:before{content:"";position:absolute;left:1.35rem;top:1rem;bottom:1rem;
+width:2px;background:var(--line);border-radius:2px}
+ul.timeline li{position:relative;background:var(--card);border:1px solid var(--line);
+border-radius:12px;padding:.6rem .95rem .6rem 2.7rem;margin-bottom:.5rem;
+font-size:.9rem;box-shadow:var(--shadow)}
+ul.timeline li:before{content:"";position:absolute;left:1.02rem;top:1.02rem;
+width:.65rem;height:.65rem;border-radius:50%;background:var(--green);
+border:2px solid var(--card);box-shadow:0 0 0 2px var(--green)}
+@media (prefers-color-scheme:dark){
+:root{--ink:#e9ebee;--muted:#9aa0a8;--card:#1f2227;--bg:#141518;--line:#2e3239;
+--shadow:0 1px 2px rgba(0,0,0,.35),0 6px 18px rgba(0,0,0,.4);color-scheme:dark}
+body{background:var(--bg)}
+.status.st-working{background:#1d3524}.status.st-wait{background:#262a31}
+.status.st-done{background:#1c2b3d}.status.st-bad{background:#3d2220}
+.status.st-self{background:#3a2a1c}.status.st-think{background:#2f2339}
+.status.st-money{background:#3a3120}
+.note{background:#2b2517;border-color:#5a4d24}
+.note.bad{background:#3a2220;border-color:#6e3a34}
+.answer{background:#1c2a1f;border-color:#2f5b38}
+}
 """
 
 PAGE = """<!doctype html><html><head><meta charset="utf-8">
@@ -396,19 +419,19 @@ def task_detail(store, task_id):
             klabel, kcls, _ = friendly_status(k)
             items.append(
                 f"<a class='card' href='/?task={html.escape(k['id'])}'>"
-                f"<span class='status'><span class='dot {kcls}'></span>"
+                f"<span class='status {kcls}'><span class='dot {kcls}'></span>"
                 f"{html.escape(klabel)}</span>"
                 f"<div class='title'>{html.escape(k['title'])}</div></a>")
         sub_html = (f"<h3>Smaller pieces ({sum(1 for k in kids if k['status'] == 'done')}"
                     f" of {len(kids)} done)</h3>{''.join(items)}")
     return (f"<a class='back' href='/'>← All tasks</a>"
             f"<h2 style='margin:.2rem 0'>{html.escape(t['title'])}</h2>"
-            f"<p><span class='status'><span class='dot {cls}'></span>"
+            f"<p><span class='status {cls}'><span class='dot {cls}'></span>"
             f"{html.escape(label)}</span><br>"
             f"<span class='why'>{html.escape(why)}</span></p>"
             f"{parent_html}{sub_html}"
             f"{spend_html}{hold_form}{crit_html}{review_html}"
-            f"<h3>What happened</h3><ul class='plain'>{events}</ul>"
+            f"<h3>What happened</h3><ul class='plain timeline'>{events}</ul>"
             f"<h3>Things it remembers</h3><ul class='plain'>{mem_html}</ul>")
 
 
