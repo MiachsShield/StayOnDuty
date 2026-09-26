@@ -138,47 +138,93 @@ def _usage_tokens(result):
         return 0, 0
 
 
-def make_work_fn(provider, label):
-    """One focused provider pass per task: ask, record, report spend."""
+def connected_models_in_order(preferred, store):
+    """Model ids with working credentials: the preferred (auto-resolved)
+    model first, then every other connected model. A task walks this list
+    so a broken lane hands off to the next helper instead of dying."""
+    order = []
+    if preferred in MODELS:
+        order.append(preferred)
+    for mid in MODEL_IDS:
+        if mid not in order:
+            order.append(mid)
+    return [mid for mid in order if is_connected(mid, store)]
+
+
+def make_work_fn(model_ids, store):
+    """One focused pass per task, with cross-model failover.
+
+    The task is tried on each connected model in order. When a lane is
+    broken (provider errors, bad key) the discussion continues with
+    another LLM on its own. A quota wait stays a calm wait — we never
+    burn a second model's allowance just because the first is resting.
+    """
     def work(ctx):
         payload = ctx.task.get("payload") or {}
         prompt = payload.get("prompt") or ctx.task["title"]
-        ctx.step(f"Sent your request to {label}")
-        result = None
         last_error = None
-        for attempt in (1, 2, 3):
+        for i, mid in enumerate(model_ids):
+            _, _, label = MODELS[mid]
+            next_label = MODELS[model_ids[i + 1]][2] \
+                if i + 1 < len(model_ids) else None
             try:
-                result = provider.generate(
-                    prompt, kind="text", system=SYSTEM_PROMPT,
-                    max_tokens=2000, temperature=0.7)
-                last_error = None
-                break
-            except QuotaExhausted as qe:
-                wait_msg = (getattr(provider, "QUOTA_WAIT_MESSAGE", None)
-                            or f"{label} is at its usage limit — resuming"
-                               " on its own when the window resets")
-                raise QuotaWait(qe.reset_at, wait_msg, provider=label)
+                provider, _ = provider_for(mid, store)
             except AuthError:
-                # Wrong key: retrying is pointless. The note tells the
-                # user exactly what to do; the task fails as a passive
-                # record, never a push.
-                ctx.note(f"{label} didn't accept the API key — check it in"
-                         " Settings, then start the task again.")
-                raise
-            except ProviderError as e:
-                last_error = e
-                if attempt < 3:
-                    ctx.note("Ran into a hiccup — trying again on its own.")
-                    time.sleep(2 ** attempt)
-        if result is None:
-            ctx.note("Kept hitting a wall — leaving the full story here.")
-            raise last_error
-        ctx.step(f"{label} answered")
-        ctx.remember("result", result.text)
-        prompt_toks, completion_toks = _usage_tokens(result)
-        if prompt_toks or completion_toks:
-            ctx.report_usage(prompt_tokens=prompt_toks,
-                             completion_tokens=completion_toks)
+                # Key vanished between the check and the build — skip
+                # this lane, don't burn the task on it.
+                last_error = AuthError(f"{label} credentials missing")
+                if next_label:
+                    ctx.note(f"{label} isn't connected right now — "
+                             f"{next_label} is picking it up instead.")
+                continue
+            ctx.step(f"Sent your request to {label}")
+            result = None
+            for attempt in (1, 2, 3):
+                try:
+                    result = provider.generate(
+                        prompt, kind="text", system=SYSTEM_PROMPT,
+                        max_tokens=2000, temperature=0.7)
+                    last_error = None
+                    break
+                except QuotaExhausted as qe:
+                    # Resting lane, not a broken one: wait calmly for the
+                    # free allowance instead of spending another model's.
+                    wait_msg = (getattr(provider, "QUOTA_WAIT_MESSAGE", None)
+                                or f"{label} is at its usage limit — resuming"
+                                   " on its own when the window resets")
+                    raise QuotaWait(qe.reset_at, wait_msg, provider=label)
+                except AuthError:
+                    # Wrong key: retrying this lane is pointless — hand
+                    # the discussion to the next helper.
+                    last_error = AuthError(f"{label} rejected its key")
+                    if next_label:
+                        ctx.note(f"{label} didn't accept its saved key — "
+                                 f"{next_label} is picking it up instead. "
+                                 f"The {label} key may need a check in "
+                                 "Settings when you get a moment.")
+                    break
+                except ProviderError as e:
+                    last_error = e
+                    if attempt < 3:
+                        ctx.note("Ran into a hiccup — trying again on its own.")
+                        time.sleep(2 ** attempt)
+            if result is not None:
+                if i > 0:
+                    ctx.note(f"{label} picked it up and finished it.")
+                ctx.step(f"{label} answered")
+                ctx.remember("result", result.text)
+                prompt_toks, completion_toks = _usage_tokens(result)
+                if prompt_toks or completion_toks:
+                    ctx.report_usage(prompt_tokens=prompt_toks,
+                                     completion_tokens=completion_toks)
+                return
+            if next_label and last_error is not None:
+                ctx.note(f"{label} hit a wall — {next_label} is continuing"
+                         " from here.")
+        ctx.note("Every connected helper hit a wall — the full story is"
+                 " saved here, and it'll be retried on its own.")
+        raise last_error if last_error is not None else ProviderError(
+            "no connected model available")
     return work
 
 
@@ -201,16 +247,16 @@ def run_one_app_task(db_path, store):
     for t in _claimable_app_tasks(store):
         if needs_key(t, store):
             continue  # waits calmly for a key — never claimed, never burned
-        model_id = resolve_model((t.get("payload") or {}).get("model", "auto"),
-                                 store)
-        if model_id is None:
+        preferred = resolve_model(
+            (t.get("payload") or {}).get("model", "auto"), store)
+        if preferred is None:
             continue
-        try:
-            provider, label = provider_for(model_id, store)
-        except AuthError:
-            continue  # key vanished between check and build — stays pending
-        work_fn = make_work_fn(provider, label)
-        print(f"[app-runner] {t['id']} '{t['title']}' -> {label}", flush=True)
+        model_ids = connected_models_in_order(preferred, store)
+        if not model_ids:
+            continue  # nothing connected — waits calmly, never burned
+        work_fn = make_work_fn(model_ids, store)
+        labels = " / ".join(MODELS[m][2] for m in model_ids)
+        print(f"[app-runner] {t['id']} '{t['title']}' -> {labels}", flush=True)
         return run_one(db_path, owner="app-runner", work_fn=work_fn,
                        lease_secs=30, task_id=t["id"])
     return None
