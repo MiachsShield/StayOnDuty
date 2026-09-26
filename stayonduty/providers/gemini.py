@@ -37,7 +37,9 @@ from .base import (Provider, ProviderError, AuthError, ProviderResult,
                    QuotaExhausted, QuotaStatus)
 
 BASE_URL = "https://generativelanguage.googleapis.com"
-DEFAULT_MODEL = "gemini-2.5-flash"  # override via GEMINI_MODEL
+DEFAULT_MODEL = "gemini-3.8-flash"  # override via GEMINI_MODEL
+# (2026-09-26: Google retired gemini-2.5-flash for new API users;
+# generateContent 404s on it — live-verified.)
 
 # What a quota-parked Gemini task tells the user (pull-only, calm).
 QUOTA_WAIT_MESSAGE = ("You've used today's free allowance — fresh allowance"
