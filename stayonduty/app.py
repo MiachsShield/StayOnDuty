@@ -61,17 +61,34 @@ MODEL_LABELS = {"auto": "Auto", "gemini": "Gemini (free)",
                 "claude": "Claude", "grok": "Grok", "chatgpt": "ChatGPT"}
 
 APP_CSS = """
-.nav{display:flex;gap:.6rem;align-items:center;margin-bottom:1.1rem;flex-wrap:wrap}
-.nav .sp{flex:1}
+.appnav{display:flex;gap:.6rem;align-items:center;margin-bottom:1.3rem}
+.appnav .sp{flex:1}
 .btn{display:inline-block;background:var(--green);color:#fff;border:none;
 border-radius:10px;padding:.65rem 1.25rem;font-size:1rem;font-weight:600;
-cursor:pointer;text-decoration:none}
+cursor:pointer;text-decoration:none;box-shadow:var(--shadow)}
+.btn:hover{background:var(--green-d)}
 .btn.sec{background:#fff;color:var(--ink);border:1px solid var(--line);
-font-weight:500;padding:.5rem 1rem;font-size:.9rem}
+font-weight:500;padding:.5rem 1rem;font-size:.9rem;box-shadow:none}
+.btn.sec:hover{background:#fafafa}
 .btn.danger{background:#fff;color:var(--red);border:1px solid #f0b9b2;
-font-weight:500;padding:.4rem .9rem;font-size:.85rem}
+font-weight:500;padding:.4rem .9rem;font-size:.85rem;box-shadow:none}
 .btn.big{font-size:1.1rem;padding:.85rem 2rem;border-radius:12px;width:100%;
 margin-top:1rem}
+.glogo{width:20px;height:20px;flex:none}
+.btn.google{display:flex;align-items:center;justify-content:center;gap:.7rem;
+background:#fff;color:#3c4043;border:1px solid #dadce0;font-size:1.02rem;
+padding:.8rem 1.4rem;border-radius:12px;width:100%;margin-top:.9rem;
+font-weight:600;box-shadow:0 1px 3px rgba(60,64,67,.2)}
+.btn.google:hover{background:#f7f8f8;box-shadow:0 2px 8px rgba(60,64,67,.25)}
+.hero{background:linear-gradient(160deg,#f3faf3,#e9f4ea);
+border:1px solid #cfe6d2;border-radius:20px;padding:1.9rem 1.5rem;
+margin-bottom:1.2rem;box-shadow:var(--shadow);text-align:center}
+.hero-kicker{font-size:.82rem;font-weight:800;color:var(--green);
+text-transform:uppercase;letter-spacing:.09em;margin-bottom:.55rem}
+.hero-title{font-size:1.7rem;font-weight:800;letter-spacing:-.02em;
+line-height:1.25;margin:0 0 .6rem}
+.hero-sub{color:var(--muted);font-size:.95rem;margin:0}
+.fine{color:var(--muted);font-size:.8rem;margin-top:.9rem}
 textarea.big{width:100%;min-height:8rem;border:1px solid var(--line);
 border-radius:12px;padding:.9rem;font-size:1.05rem;font-family:inherit;
 resize:vertical}
@@ -94,9 +111,6 @@ border:1px solid var(--line);border-radius:8px;font-size:.95rem}
 padding:.9rem 1.2rem;margin-bottom:.8rem;font-size:.93rem}
 .banner.amber{background:#fff8e6;border-color:#ecd9a0}
 .banner.blue{background:#eef4fd;border-color:#c3d6f2}
-.btn.google{background:#fff;color:var(--ink);border:1px solid var(--line);
-font-size:1.05rem;padding:.8rem 1.4rem;border-radius:12px;width:100%;
-margin-top:.8rem;font-weight:600}
 .steps{margin:.6rem 0 0;padding:0;list-style:none}
 .steps li{margin:.55rem 0;font-size:.95rem}
 .steps .n{display:inline-block;width:1.5rem;height:1.5rem;border-radius:50%;
@@ -112,10 +126,24 @@ code.url{word-break:break-all;background:#f4f4f4;padding:.15rem .4rem;
 border-radius:6px;font-size:.85rem}
 """
 
-HEADER = """<div class="nav"><a class="btn sec" href="/">Tasks</a>
-<a class="btn sec" href="/new">＋ New task</a><span class="sp"></span>
-<a class="btn sec" href="/settings">⚙ Settings</a></div>
+HEADER = """<div class="appnav"><span class="sp"></span>
+<a class="btn sec" href="/settings">⚙ Settings</a>
+<a class="btn" href="/new">＋ New task</a></div>
 """
+
+# The familiar multicolor "G" — inline SVG, no external assets.
+G_LOGO = ("<svg class='glogo' viewBox='0 0 24 24' aria-hidden='true'>"
+          "<path fill='#4285F4' d='M23.5 12.3c0-.9-.1-1.5-.3-2.3H12v4.5h6.5c-.1 1.1-.8 2.7-2.4 3.8l-.1.1 3.5 2.7.2.1c2.2-2 3.8-5 3.8-8.9z'/>"
+          "<path fill='#34A853' d='M12 24c3.2 0 6-1.1 7.9-2.9l-3.8-2.9c-1 .7-2.4 1.2-4.1 1.2-3.1 0-5.8-2.1-6.8-5l-.1.1-3.6 2.8v.1C3.6 21.3 7.5 24 12 24z'/>"
+          "<path fill='#FBBC05' d='M5.2 14.4c-.2-.7-.4-1.5-.4-2.4s.1-1.7.4-2.4l-.1-.1-3.6-2.8-.1.1C.5 8.5 0 10.2 0 12s.5 3.5 1.4 5.1l3.8-2.7z'/>"
+          "<path fill='#EA4335' d='M12 4.7c1.8 0 3 .8 3.7 1.4l3.3-3.2C17.9 1.1 15.2 0 12 0 7.5 0 3.6 2.7 1.4 6.9l3.8 2.8c1-2.9 3.7-5 6.8-5z'/></svg>")
+
+
+def google_btn():
+    """The one-tap button, styled like the Google sign-in button people
+    already trust."""
+    return (f"<a class='btn google' href='/connect/google'>{G_LOGO}"
+            "Continue with Google</a>")
 
 
 def page(body):
@@ -147,9 +175,17 @@ def app_task_list(store):
     rows = store.db.execute(
         "SELECT * FROM tasks ORDER BY updated_at DESC").fetchall()
     if not rows:
-        return ("<h2 class='sec'>Your tasks</h2><div class='feed'><p class='empty'>"
-                "Nothing here yet — tap <b>＋ New task</b> above and tell your"
-                " helper what to do.</p></div>")
+        return ("<h2 class='sec'>Your tasks</h2>"
+                "<div class='feed'><div class='empty-state'>"
+                "<svg viewBox='0 0 64 64' aria-hidden='true'>"
+                "<rect x='18' y='12' width='28' height='40' rx='5' fill='#eef1ea'"
+                " stroke='#c9d2c4' stroke-width='2'/>"
+                "<rect x='26' y='6' width='12' height='8' rx='3' fill='#2f9e4f'/>"
+                "<path d='M26 31l6 6 10-12' stroke='#2f9e4f' stroke-width='4'"
+                " fill='none' stroke-linecap='round' stroke-linejoin='round'/>"
+                "</svg><p><b>Nothing here yet.</b><br>Tap <b>＋ New task</b>"
+                " above and tell your helper what to do — then put your"
+                " phone down. We'll stay on it.</p></div></div>")
     now = time.time()
     cards = []
     for r in rows:
@@ -196,7 +232,7 @@ def app_task_list(store):
             extra = f" · {done_n} of {len(kids)} pieces done"
         cards.append(
             f"<a class='card' href='/?task={t['id']}'>"
-            f"<span class='status'><span class='dot {cls}'></span>"
+            f"<span class='status {cls}'><span class='dot {cls}'></span>"
             f"{html.escape(label)}</span>"
             f"<div class='title'>{title}</div>"
             f"<div class='why'>{html.escape(why)}</div>{spend_html}"
@@ -212,13 +248,14 @@ def home_banners(store):
     connected = sum(1 for mid in MODEL_IDS if is_connected(mid, store))
     if connected == 0:
         out.append(
-            "<div class='banner'>👋 <b>Welcome!</b> No keys, no codes —"
-            " one tap and your helper is ready."
-            "<a class='btn google' href='/connect/google'>"
-            "Continue with Google — free, one tap</a>"
-            "<p class='hint'>Signs you in with your Google account and runs"
-            " Gemini on its free allowance (~1,500 requests a day — plenty)."
-            " StayOnDuty is free forever; nothing is billed, ever.</p></div>")
+            "<div class='hero'>"
+            "<div class='hero-kicker'>👋 Welcome to StayOnDuty</div>"
+            "<div class='hero-title'>Put a task down.<br>We'll stay on it.</div>"
+            "<p class='hero-sub'>One tap connects your free Gemini helper —"
+            " no keys, no codes, no billing. Ever.</p>"
+            f"{google_btn()}"
+            "<div class='fine'>Free forever · ~1,500 free Gemini requests a"
+            " day · problems get handled on their own</div></div>")
     waiting = [t for t in
                store.db.execute(
                    "SELECT * FROM tasks WHERE status='pending'").fetchall()
@@ -334,8 +371,7 @@ def _google_section(store):
             " Google</button></form></div>")
     else:
         card = (
-            "<a class='btn google' href='/connect/google'>"
-            "Continue with Google — free, one tap</a>"
+            f"{google_btn()}"
             "<p class='hint'>No keys, no codes — one tap and your helper is"
             " ready. Uses your own free Gemini allowance; StayOnDuty is"
             " free forever and nothing is billed.</p>")
@@ -461,7 +497,7 @@ def task_page(store, task_id):
     if (t.get("payload") or {}).get("app"):
         answer = store.memories(scope=f"task:{task_id}").get("result")
         if answer:
-            body += ("<h3>The answer</h3><div class='feed'>"
+            body += ("<h3>✨ The answer</h3><div class='answer'>"
                      f"<p class='pre'>{html.escape(str(answer))}</p></div>")
     return body + dashboard.task_detail(store, task_id)
 
